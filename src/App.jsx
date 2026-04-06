@@ -8,19 +8,28 @@ function App() {
   const [images, setImages] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
+  const currentScrollIndexRef = useRef(0);
+  const renderRef = useRef(null);
+
   // Preload images
   useEffect(() => {
     const loadedImages = [];
-    let loadedCount = 0;
 
     for (let i = 0; i < FRAME_COUNT; i++) {
       const img = new Image();
       const frameNumber = i.toString().padStart(4, '0');
+
+      if ('fetchPriority' in HTMLImageElement.prototype) {
+        img.fetchPriority = i < 15 ? 'high' : 'low';
+      }
+
       img.src = `/frames/frame_${frameNumber}.jpg`;
       img.onload = () => {
-        loadedCount++;
-        if (loadedCount === FRAME_COUNT) {
+        if (i === 0) {
           setLoaded(true);
+        }
+        if (i === currentScrollIndexRef.current && renderRef.current) {
+          renderRef.current(i);
         }
       };
       loadedImages.push(img);
@@ -39,36 +48,56 @@ function App() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    let lastDrawnIndex = -1;
+
     const render = (frameIndex) => {
-      if (images[frameIndex]) {
-        const img = images[frameIndex];
-
-        const hRatio = canvas.width / img.width;
-        const vRatio = canvas.height / img.height;
-        const ratio = Math.max(hRatio, vRatio);
-
-        const centerShift_x = (canvas.width - img.width * ratio) / 2;
-        const centerShift_y = (canvas.height - img.height * ratio) / 2;
-
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(img, 0, 0, img.width, img.height,
-          centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
+      let targetIndex = frameIndex;
+      while (targetIndex >= 0 && (!images[targetIndex] || !images[targetIndex].complete)) {
+        targetIndex--;
       }
+
+      if (targetIndex < 0) {
+        targetIndex = frameIndex + 1;
+        while (targetIndex < FRAME_COUNT && (!images[targetIndex] || !images[targetIndex].complete)) {
+          targetIndex++;
+        }
+      }
+
+      if (targetIndex < 0 || targetIndex >= FRAME_COUNT || targetIndex === lastDrawnIndex || !images[targetIndex].complete) {
+        return;
+      }
+
+      const img = images[targetIndex];
+
+      const hRatio = canvas.width / img.width;
+      const vRatio = canvas.height / img.height;
+      const ratio = Math.max(hRatio, vRatio);
+
+      const centerShift_x = (canvas.width - img.width * ratio) / 2;
+      const centerShift_y = (canvas.height - img.height * ratio) / 2;
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(img, 0, 0, img.width, img.height,
+        centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
+
+      lastDrawnIndex = targetIndex;
     };
 
+    renderRef.current = render;
     render(0);
 
     const handleScroll = () => {
       // Calculate scroll fraction
       const scrollTop = document.documentElement.scrollTop;
       const maxScrollTop = document.documentElement.scrollHeight - window.innerHeight;
-      const scrollFraction = scrollTop / maxScrollTop;
+      const scrollFraction = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
 
       const frameIndex = Math.min(
         FRAME_COUNT - 1,
         Math.floor(scrollFraction * FRAME_COUNT)
       );
 
+      currentScrollIndexRef.current = frameIndex;
       requestAnimationFrame(() => render(frameIndex));
     };
 
@@ -76,12 +105,14 @@ function App() {
     window.addEventListener('resize', () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      lastDrawnIndex = -1;
       handleScroll();
     });
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
+      renderRef.current = null;
     };
   }, [loaded, images]);
 
