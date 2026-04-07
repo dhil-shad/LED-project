@@ -32,7 +32,6 @@ html {
   width: 100vw;
   height: 100vh;
   z-index: 0;
-  /* Object fit is handled in JS via canvas drawImage */
 }
 
 /* We need massive height to allow scrolling */
@@ -67,7 +66,7 @@ html {
   justify-content: center;
   align-items: center;
   text-align: center;
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
   position: relative;
   z-index: 10;
 }

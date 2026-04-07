@@ -1,145 +1,118 @@
 import { useEffect, useRef, useState } from 'react';
 import './App.css';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-const FRAME_COUNT = 192; // frame_0000.jpg to frame_0191.jpg
+gsap.registerPlugin(ScrollTrigger);
 
 function App() {
   const canvasRef = useRef(null);
-  const [images, setImages] = useState([]);
+  const videoRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
+  const containerRef = useRef(null);
 
-  const currentScrollIndexRef = useRef(0);
-  const renderRef = useRef(null);
-
-  // Preload images
   useEffect(() => {
-    const loadedImages = [];
+    // Create the hidden video element
+    const video = document.createElement('video');
+    video.src = '/reencoded_newsinan.mp4';
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    videoRef.current = video;
 
-    for (let i = 0; i < FRAME_COUNT; i++) {
-      const img = new Image();
-      const frameNumber = i.toString().padStart(4, '0');
-
-      if ('fetchPriority' in HTMLImageElement.prototype) {
-        img.fetchPriority = i < 15 ? 'high' : 'low';
-      }
-
-      img.src = `/frames/frame_${frameNumber}.jpg`;
-      img.onload = () => {
-        if (i === 0) {
-          setLoaded(true);
-        }
-        if (i === currentScrollIndexRef.current && renderRef.current) {
-          renderRef.current(i);
-        }
-      };
-      loadedImages.push(img);
-    }
-    setImages(loadedImages);
-  }, []);
-
-  // Handle Scroll and Draw
-  useEffect(() => {
-    if (!loaded || !canvasRef.current || images.length === 0) return;
-
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-
-    // Set canvas dimensions to window size
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    let lastDrawnIndex = -1;
-
-    const render = (frameIndex) => {
-      let targetIndex = frameIndex;
-      while (targetIndex >= 0 && (!images[targetIndex] || !images[targetIndex].complete)) {
-        targetIndex--;
-      }
-
-      if (targetIndex < 0) {
-        targetIndex = frameIndex + 1;
-        while (targetIndex < FRAME_COUNT && (!images[targetIndex] || !images[targetIndex].complete)) {
-          targetIndex++;
-        }
-      }
-
-      if (targetIndex < 0 || targetIndex >= FRAME_COUNT || targetIndex === lastDrawnIndex || !images[targetIndex].complete) {
-        return;
-      }
-
-      const img = images[targetIndex];
-
-      const hRatio = canvas.width / img.width;
-      const vRatio = canvas.height / img.height;
-      const ratio = Math.max(hRatio, vRatio);
-
-      const centerShift_x = (canvas.width - img.width * ratio) / 2;
-      const centerShift_y = (canvas.height - img.height * ratio) / 2;
-
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(img, 0, 0, img.width, img.height,
-        centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
-
-      lastDrawnIndex = targetIndex;
-    };
-
-    renderRef.current = render;
-    render(0);
-
-    const handleScroll = () => {
-      // Calculate scroll fraction
-      const scrollTop = document.documentElement.scrollTop;
-      const startAnimScroll = window.innerHeight * 0.8; // Start animation after scrolling down 80% of viewport
-
-      const contentWrapper = document.querySelector('.content-scroll');
-      const contentHeight = contentWrapper ? contentWrapper.offsetHeight : document.documentElement.scrollHeight;
-      const maxScrollTop = contentHeight - window.innerHeight;
-      const animScrollRange = maxScrollTop - startAnimScroll;
-
-      let scrollFraction = 0;
-      if (animScrollRange > 0) {
-        scrollFraction = Math.max(0, (scrollTop - startAnimScroll) / animScrollRange);
-        if (scrollFraction > 1) scrollFraction = 1;
-      }
-
-      const frameIndex = Math.min(
-        FRAME_COUNT - 1,
-        Math.floor(scrollFraction * FRAME_COUNT)
-      );
-
-      currentScrollIndexRef.current = frameIndex;
-      requestAnimationFrame(() => render(frameIndex));
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      lastDrawnIndex = -1;
-      handleScroll();
+    video.addEventListener('loadeddata', () => {
+      setLoaded(true);
+      // Draw the first frame
+      drawFrame();
     });
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-      renderRef.current = null;
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
     };
-  }, [loaded, images]);
+  }, []);
+
+  const drawFrame = () => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const hRatio = canvas.width / video.videoWidth;
+    const vRatio = canvas.height / video.videoHeight;
+    const ratio = Math.max(hRatio, vRatio);
+
+    const cx = (canvas.width - video.videoWidth * ratio) / 2;
+    const cy = (canvas.height - video.videoHeight * ratio) / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight,
+      cx, cy, video.videoWidth * ratio, video.videoHeight * ratio);
+  };
+
+  // Set up GSAP ScrollTrigger to scrub video
+  useEffect(() => {
+    if (!loaded || !videoRef.current) return;
+
+    const video = videoRef.current;
+
+    const ctx = gsap.context(() => {
+      gsap.to(video, {
+        currentTime: video.duration || 0,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '.content-scroll',
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 0.5,
+        }
+      });
+    }, containerRef);
+
+    // Use requestAnimationFrame to continuously draw the current video frame
+    let rafId;
+    const tick = () => {
+      drawFrame();
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    // Handle resize
+    const handleResize = () => {
+      if (canvasRef.current) {
+        canvasRef.current.width = window.innerWidth;
+        canvasRef.current.height = window.innerHeight;
+        drawFrame();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      ctx.revert();
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [loaded]);
 
   return (
-    <div className="app-container">
+    <div className="app-container" ref={containerRef}>
+      {/* Native 2D Canvas for video frames */}
       <canvas ref={canvasRef} className="scroll-canvas" />
 
       {!loaded && (
         <div className="loading-screen">
           <div className="spinner"></div>
-          <h2>Loading Experience...</h2>
+          <h2 className="cursive-title" style={{ fontSize: '2rem' }}>LooFix</h2>
+          <p>Loading Experience...</p>
         </div>
       )}
 
       {/* Content wrapper for scrolling */}
       <div className="content-scroll">
-
         <section className="hero-section">
           <div className="hero-content">
             <h1 className="cursive-title">Loofix</h1>
@@ -167,10 +140,9 @@ function App() {
             <p>Whether you need a permanent installation or a temporary rental, Loofix provides flexible and scalable LED solutions tailored to your unique requirements. We manage everything from setup to operation.</p>
           </div>
         </section>
-
       </div>
 
-      {/* Normal Background Enquiry Section after scrolling finishes */}
+      {/* Enquiry Section */}
       <section className="enquiry-section">
         <div className="skeuo-panel center-panel">
           <h2 className="engraved-text">Ready to Elevate Your Display?</h2>
