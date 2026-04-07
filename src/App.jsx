@@ -89,8 +89,18 @@ function App() {
     const handleScroll = () => {
       // Calculate scroll fraction
       const scrollTop = document.documentElement.scrollTop;
-      const maxScrollTop = document.documentElement.scrollHeight - window.innerHeight;
-      const scrollFraction = maxScrollTop > 0 ? scrollTop / maxScrollTop : 0;
+      const startAnimScroll = window.innerHeight * 0.8; // Start animation after scrolling down 80% of viewport
+
+      const contentWrapper = document.querySelector('.content-scroll');
+      const contentHeight = contentWrapper ? contentWrapper.offsetHeight : document.documentElement.scrollHeight;
+      const maxScrollTop = contentHeight - window.innerHeight;
+      const animScrollRange = maxScrollTop - startAnimScroll;
+
+      let scrollFraction = 0;
+      if (animScrollRange > 0) {
+        scrollFraction = Math.max(0, (scrollTop - startAnimScroll) / animScrollRange);
+        if (scrollFraction > 1) scrollFraction = 1;
+      }
 
       const frameIndex = Math.min(
         FRAME_COUNT - 1,
@@ -129,35 +139,52 @@ function App() {
 
       {/* Content wrapper for scrolling */}
       <div className="content-scroll">
+
+        <section className="hero-section">
+          <div className="hero-content">
+            <h1 className="cursive-title">Loofix</h1>
+            <p className="brand-quote">"Illuminating your vision with cutting-edge LED modular displays."</p>
+          </div>
+        </section>
+
         <section className="scroll-section">
           <div className="glass-panel">
-            <h1>NEON Interactive</h1>
-            <p>Scroll down to explore the immersive 3D animation sequence.</p>
+            <h2>Next-Gen LED Walls</h2>
+            <p>Experience ultra-high-definition modular LED walls, designed to deliver stunning visual clarity and seamless integration for any environment. Perfect for exhibitions, corporate events, and virtual production.</p>
           </div>
         </section>
 
         <section className="scroll-section">
           <div className="glass-panel align-right">
-            <h2>Seamless Integration</h2>
-            <p>192 high-quality frames loaded seamlessly via background prefetching to deliver an unparalleled smooth scrolling experience.</p>
+            <h2>Premium Billboards</h2>
+            <p>Our robust and dynamic outdoor and indoor LED billboards ensure maximum visibility and reliability. Stand out from the crowd with vibrant colors and unmatched brightness, day or night.</p>
           </div>
         </section>
 
         <section className="scroll-section">
           <div className="glass-panel">
-            <h2>Modern Aesthetics</h2>
-            <p>Incorporating glassmorphism, precise typography, and dynamic canvas rendering for cutting-edge web design.</p>
+            <h2>Rental & Sales</h2>
+            <p>Whether you need a permanent installation or a temporary rental, Loofix provides flexible and scalable LED solutions tailored to your unique requirements. We manage everything from setup to operation.</p>
           </div>
         </section>
 
-        <section className="scroll-section">
-          <div className="glass-panel center-panel">
-            <h2>Journey Complete</h2>
-            <p>You have reached the end of the interactive sequence.</p>
-            <button className="premium-btn" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Back to Top</button>
-          </div>
-        </section>
       </div>
+
+      {/* Normal Background Enquiry Section after scrolling finishes */}
+      <section className="enquiry-section">
+        <div className="skeuo-panel center-panel">
+          <h2 className="engraved-text">Ready to Elevate Your Display?</h2>
+          <p className="inset-text">Contact us today and let's bring your vision to life.</p>
+          <a
+            href="https://wa.me/919400374426?text=hi%20iam%20intrest%20about%20knowing%20the%20product"
+            className="skeuo-btn"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Enquire Now
+          </a>
+        </div>
+      </section>
     </div>
   );
 }
