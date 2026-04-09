@@ -39,7 +39,7 @@
 
 .loader-brand {
     font-family: 'Great Vibes', cursive;
-    font-size: 7rem;
+    font-size: clamp(3.5rem, 10vw, 7rem);
     font-weight: 400;
     margin: 0;
     /* Shimmering silver gradient */
@@ -71,13 +71,14 @@
 /* ── Rotating Quotes ────────────────────────────────────── */
 .loader-quote {
     font-family: 'Outfit', sans-serif;
-    font-size: 1.25rem;
+    font-size: clamp(0.85rem, 2.5vw, 1.25rem);
     font-weight: 300;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: #a1a1aa;
     margin: 0;
     min-height: 2em;
+    padding: 0 1.5rem;
     transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
@@ -94,7 +95,7 @@
 /* ── Progress Bar ───────────────────────────────────────── */
 .loader-progress-wrap {
     position: absolute;
-    bottom: 60px;
+    bottom: clamp(30px, 6vh, 60px);
     left: 50%;
     transform: translateX(-50%);
     z-index: 10;
@@ -128,20 +129,4 @@
     font-weight: 300;
     letter-spacing: 3px;
     color: rgba(255, 255, 255, 0.35);
-}
-
-/* ── Responsive ─────────────────────────────────────────── */
-@media (max-width: 768px) {
-    .loader-brand {
-        font-size: 4.5rem;
-    }
-
-    .loader-quote {
-        font-size: 1rem;
-        padding: 0 2rem;
-    }
-
-    .loader-progress-wrap {
-        bottom: 40px;
-    }
 }

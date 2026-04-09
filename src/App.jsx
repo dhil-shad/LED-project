@@ -1,149 +1,78 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { Canvas } from '@react-three/fiber';
+import ScrollScene from './ScrollScene';
 import LoadingScreen from './LoadingScreen';
 
 gsap.registerPlugin(ScrollTrigger);
 
 function App() {
-  const canvasRef = useRef(null);
-  const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const scrollProgress = useRef(0);
 
   // Loading states
   const [progress, setProgress] = useState(0);
-  const [loaded, setLoaded] = useState(false);
+  const [glReady, setGlReady] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [entered, setEntered] = useState(false);
 
-  const drawFrame = useCallback(() => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
-
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const hRatio = canvas.width / video.videoWidth;
-    const vRatio = canvas.height / video.videoHeight;
-    const ratio = Math.max(hRatio, vRatio);
-
-    const cx = (canvas.width - video.videoWidth * ratio) / 2;
-    const cy = (canvas.height - video.videoHeight * ratio) / 2;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight,
-      cx, cy, video.videoWidth * ratio, video.videoHeight * ratio);
+  // Smooth progress over 21s — ensures user sees all 3 loading animations
+  useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const dur = 21000;
+    const tick = () => {
+      const t = Math.min((performance.now() - start) / dur, 1);
+      setProgress(t * (2 - t) * 100); // ease-out quad
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
+
+  // Trigger exit animation when progress done + WebGL ready
+  useEffect(() => {
+    if (progress < 100 || !glReady) return;
+    const t1 = setTimeout(() => setExiting(true), 400);
+    const t2 = setTimeout(() => setEntered(true), 1500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [progress, glReady]);
 
   // Block scrolling while loading
   useEffect(() => {
-    if (!entered) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = entered ? '' : 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, [entered]);
 
-  // Create and load the video
+  // ScrollTrigger → drives WebGL scroll animation
   useEffect(() => {
-    const video = document.createElement('video');
-    video.src = '/reencoded_newsinan.mp4';
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-    videoRef.current = video;
-
-    // Track buffering progress
-    const progressInterval = setInterval(() => {
-      if (video.duration && video.buffered.length > 0) {
-        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-        const pct = (bufferedEnd / video.duration) * 100;
-        setProgress(pct);
-      }
-    }, 200);
-
-    // Only allow entry when fully playable
-    const handleReady = () => {
-      setProgress(100);
-      setLoaded(true);
-      drawFrame();
-
-      // Start exit animation after a brief moment
-      setTimeout(() => {
-        setExiting(true);
-        // Remove loading screen after the CSS transition finishes
-        setTimeout(() => {
-          setEntered(true);
-        }, 1100);
-      }, 600);
-    };
-
-    video.addEventListener('canplaythrough', handleReady);
-
-    return () => {
-      clearInterval(progressInterval);
-      video.removeEventListener('canplaythrough', handleReady);
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-    };
-  }, [drawFrame]);
-
-  // Set up GSAP ScrollTrigger to scrub video
-  useEffect(() => {
-    if (!entered || !videoRef.current) return;
-
-    const video = videoRef.current;
-
-    const ctx = gsap.context(() => {
-      gsap.to(video, {
-        currentTime: video.duration || 0,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: '.content-scroll',
-          start: 'top top',
-          end: 'bottom bottom',
-          scrub: 0.5,
-        }
-      });
-    }, containerRef);
-
-    let rafId;
-    const tick = () => {
-      drawFrame();
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-
-    const handleResize = () => {
-      if (canvasRef.current) {
-        canvasRef.current.width = window.innerWidth;
-        canvasRef.current.height = window.innerHeight;
-        drawFrame();
-      }
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      ctx.revert();
-      cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [entered, drawFrame]);
+    if (!entered) return;
+    const st = ScrollTrigger.create({
+      trigger: '.content-scroll',
+      start: 'top top',
+      end: 'bottom bottom',
+      onUpdate: (self) => { scrollProgress.current = self.progress; }
+    });
+    return () => st.kill();
+  }, [entered]);
 
   return (
     <div className="app-container" ref={containerRef}>
-      {/* Loading Screen */}
-      {!entered && (
-        <LoadingScreen progress={progress} exiting={exiting} />
-      )}
+      {!entered && <LoadingScreen progress={progress} exiting={exiting} />}
 
-      {/* Native 2D Canvas for video frames */}
-      <canvas ref={canvasRef} className="scroll-canvas" />
+      {/* WebGL Scroll Background */}
+      <div className="scroll-canvas-wrap">
+        <Canvas
+          camera={{ position: [0, 0, 8], fov: 55 }}
+          gl={{ antialias: true, alpha: true }}
+          onCreated={() => setGlReady(true)}
+          style={{ background: 'transparent' }}
+        >
+          <ScrollScene scrollProgress={scrollProgress} />
+        </Canvas>
+      </div>
 
       {/* Content wrapper for scrolling */}
       <div className="content-scroll">
