@@ -1,39 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import './App.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import LoadingScreen from './LoadingScreen';
 
 gsap.registerPlugin(ScrollTrigger);
 
 function App() {
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
-  const [loaded, setLoaded] = useState(false);
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    // Create the hidden video element
-    const video = document.createElement('video');
-    video.src = '/reencoded_newsinan.mp4';
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-    videoRef.current = video;
+  // Loading states
+  const [progress, setProgress] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const [entered, setEntered] = useState(false);
 
-    video.addEventListener('loadeddata', () => {
-      setLoaded(true);
-      // Draw the first frame
-      drawFrame();
-    });
-
-    return () => {
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-    };
-  }, []);
-
-  const drawFrame = () => {
+  const drawFrame = useCallback(() => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video) return;
@@ -52,11 +36,66 @@ function App() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight,
       cx, cy, video.videoWidth * ratio, video.videoHeight * ratio);
-  };
+  }, []);
+
+  // Block scrolling while loading
+  useEffect(() => {
+    if (!entered) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [entered]);
+
+  // Create and load the video
+  useEffect(() => {
+    const video = document.createElement('video');
+    video.src = '/reencoded_newsinan.mp4';
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    videoRef.current = video;
+
+    // Track buffering progress
+    const progressInterval = setInterval(() => {
+      if (video.duration && video.buffered.length > 0) {
+        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+        const pct = (bufferedEnd / video.duration) * 100;
+        setProgress(pct);
+      }
+    }, 200);
+
+    // Only allow entry when fully playable
+    const handleReady = () => {
+      setProgress(100);
+      setLoaded(true);
+      drawFrame();
+
+      // Start exit animation after a brief moment
+      setTimeout(() => {
+        setExiting(true);
+        // Remove loading screen after the CSS transition finishes
+        setTimeout(() => {
+          setEntered(true);
+        }, 1100);
+      }, 600);
+    };
+
+    video.addEventListener('canplaythrough', handleReady);
+
+    return () => {
+      clearInterval(progressInterval);
+      video.removeEventListener('canplaythrough', handleReady);
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
+  }, [drawFrame]);
 
   // Set up GSAP ScrollTrigger to scrub video
   useEffect(() => {
-    if (!loaded || !videoRef.current) return;
+    if (!entered || !videoRef.current) return;
 
     const video = videoRef.current;
 
@@ -73,7 +112,6 @@ function App() {
       });
     }, containerRef);
 
-    // Use requestAnimationFrame to continuously draw the current video frame
     let rafId;
     const tick = () => {
       drawFrame();
@@ -81,7 +119,6 @@ function App() {
     };
     rafId = requestAnimationFrame(tick);
 
-    // Handle resize
     const handleResize = () => {
       if (canvasRef.current) {
         canvasRef.current.width = window.innerWidth;
@@ -96,20 +133,17 @@ function App() {
       cancelAnimationFrame(rafId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [loaded]);
+  }, [entered, drawFrame]);
 
   return (
     <div className="app-container" ref={containerRef}>
+      {/* Loading Screen */}
+      {!entered && (
+        <LoadingScreen progress={progress} exiting={exiting} />
+      )}
+
       {/* Native 2D Canvas for video frames */}
       <canvas ref={canvasRef} className="scroll-canvas" />
-
-      {!loaded && (
-        <div className="loading-screen">
-          <div className="spinner"></div>
-          <h2 className="cursive-title" style={{ fontSize: '2rem' }}>LooFix</h2>
-          <p>Loading Experience...</p>
-        </div>
-      )}
 
       {/* Content wrapper for scrolling */}
       <div className="content-scroll">

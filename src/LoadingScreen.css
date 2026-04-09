@@ -1,0 +1,147 @@
+/* ── Loading Screen Overlay ──────────────────────────────── */
+.loader-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: #050508;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    transition: opacity 1s ease, transform 1s ease;
+}
+
+.loader-overlay.loader-exit {
+    opacity: 0;
+    transform: translateY(-40px) scale(1.03);
+    pointer-events: none;
+}
+
+/* ── WebGL Canvas ───────────────────────────────────────── */
+.loader-canvas-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+/* ── Content (brand + quotes) ───────────────────────────── */
+.loader-content {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    pointer-events: none;
+}
+
+.loader-brand {
+    font-family: 'Great Vibes', cursive;
+    font-size: 7rem;
+    font-weight: 400;
+    margin: 0;
+    /* Shimmering silver gradient */
+    background: linear-gradient(90deg,
+            #9ca3af 0%,
+            #ffffff 20%,
+            #d1d5db 40%,
+            #ffffff 60%,
+            #9ca3af 80%,
+            #ffffff 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 40px rgba(139, 92, 246, 0.3));
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ── Rotating Quotes ────────────────────────────────────── */
+.loader-quote {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #a1a1aa;
+    margin: 0;
+    min-height: 2em;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.quote-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.quote-hidden {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+/* ── Progress Bar ───────────────────────────────────────── */
+.loader-progress-wrap {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: min(400px, 80vw);
+}
+
+.loader-progress-track {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loader-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa, #c4b5fd);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.6), 0 0 30px rgba(139, 92, 246, 0.3);
+    transition: width 0.3s ease;
+}
+
+.loader-progress-text {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 300;
+    letter-spacing: 3px;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .loader-brand {
+        font-size: 4.5rem;
+    }
+
+    .loader-quote {
+        font-size: 1rem;
+        padding: 0 2rem;
+    }
+
+    .loader-progress-wrap {
+        bottom: 40px;
+    }
+}
