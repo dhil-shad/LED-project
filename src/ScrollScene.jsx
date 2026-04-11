@@ -87,22 +87,26 @@ export default function ScrollScene({ scrollProgress }) {
     ], []);
 
     /* ═══ ANIMATION FRAME ═════════════════════════════ */
-    useFrame(({ clock }) => {
+    useFrame(({ clock, mouse }) => {
         smoothP.current += (scrollProgress.current - smoothP.current) * 0.08;
         const t = smoothP.current;
         const time = clock.getElapsedTime();
 
-        // Derived animation values
-        const assemble = ease(t, 0.08, 0.30);
-        const wallHold = 1 - ease(t, 0.68, 0.25);
-        const wallPhase = Math.min(assemble, wallHold);
-        const disperse = ease(t, 0.70, 0.25);
-        const glow = ease(t, 0.2, 0.2) * (1 - ease(t, 0.82, 0.15));
+        // Mouse Parallax
+        const mouseX = mouse.x * 0.2;
+        const mouseY = mouse.y * 0.2;
 
-        // ── Group rotation (cinematic orbit) ──
+        // Derived animation values
+        const assemble = ease(t, 0.08, 0.32);
+        const wallHold = 1 - ease(t, 0.65, 0.28);
+        const wallPhase = Math.min(assemble, wallHold);
+        const disperse = ease(t, 0.68, 0.30);
+        const glow = ease(t, 0.15, 0.25) * (1 - ease(t, 0.85, 0.15));
+
+        // ── Group rotation (cinematic orbit + mouse parallax) ──
         if (groupRef.current) {
-            groupRef.current.rotation.y = t * 0.45;
-            groupRef.current.rotation.x = Math.sin(t * Math.PI) * 0.12;
+            groupRef.current.rotation.y = t * 0.45 + mouseX * (1 - disperse);
+            groupRef.current.rotation.x = Math.sin(t * Math.PI) * 0.12 - mouseY * (1 - disperse);
         }
 
         // ── Grid floor ──

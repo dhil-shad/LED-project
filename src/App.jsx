@@ -46,16 +46,45 @@ function App() {
     return () => { document.body.style.overflow = ''; };
   }, [entered]);
 
-  // ScrollTrigger → drives WebGL scroll animation
+  // ScrollTrigger for panels entrance
   useEffect(() => {
     if (!entered) return;
+
+    const panels = gsap.utils.toArray('.glass-panel');
+    panels.forEach((panel) => {
+      gsap.fromTo(panel,
+        {
+          opacity: 0,
+          y: 100,
+          rotateX: -15,
+          filter: 'blur(10px)'
+        },
+        {
+          scrollTrigger: {
+            trigger: panel,
+            start: 'top 85%',
+            end: 'top 50%',
+            scrub: 1,
+          },
+          opacity: 1,
+          y: 0,
+          rotateX: 0,
+          filter: 'blur(0px)',
+          duration: 1
+        }
+      );
+    });
+
     const st = ScrollTrigger.create({
       trigger: '.content-scroll',
       start: 'top top',
       end: 'bottom bottom',
       onUpdate: (self) => { scrollProgress.current = self.progress; }
     });
-    return () => st.kill();
+    return () => {
+      st.kill();
+      ScrollTrigger.getAll().forEach(t => t.kill());
+    };
   }, [entered]);
 
   return (
@@ -79,47 +108,98 @@ function App() {
         <section className="hero-section">
           <div className="hero-content">
             <h1 className="cursive-title">Loofix</h1>
-            <p className="brand-quote">"Illuminating your vision with cutting-edge LED modular displays."</p>
+            <p className="brand-quote">"Sourcing the world's most immersive LED modular displays for your vision."</p>
           </div>
         </section>
 
         <section className="scroll-section">
           <div className="glass-panel">
-            <h2>Next-Gen LED Walls</h2>
-            <p>Experience ultra-high-definition modular LED walls, designed to deliver stunning visual clarity and seamless integration for any environment. Perfect for exhibitions, corporate events, and virtual production.</p>
+            <div className="panel-tag">Curated Selection</div>
+            <h2>Modular LED Walls</h2>
+            <p>We source ultra-high-definition modular LED walls, handpicked for seamless integration and breathtaking visual impact from top global manufacturers.</p>
+            <ul className="spec-list">
+              <li><span>Pixel Pitch</span> 1.9mm - 3.9mm</li>
+              <li><span>Refresh Rate</span> 3840Hz (Flicker-free)</li>
+              <li><span>Service</span> Full Front & Rear Access</li>
+              <li><span>Structure</span> Die-cast Aluminum Frames</li>
+            </ul>
+            <div className="panel-footer">
+              <span className="availability">Premium Solutions for Rental & Sales</span>
+            </div>
           </div>
         </section>
 
         <section className="scroll-section">
           <div className="glass-panel align-right">
-            <h2>Premium Billboards</h2>
-            <p>Our robust and dynamic outdoor and indoor LED billboards ensure maximum visibility and reliability. Stand out from the crowd with vibrant colors and unmatched brightness, day or night.</p>
+            <div className="panel-tag">Quality Sourcing</div>
+            <h2>Global Billboard Solutions</h2>
+            <p>Expertly selected outdoor and indoor LED billboards. We find the most robust hardware to ensure maximum visibility, thriving under direct sunlight and harsh weather.</p>
+            <div className="spec-grid">
+              <div className="spec-item">
+                <div className="spec-val">6000+</div>
+                <div className="spec-label">Nits Brightness</div>
+              </div>
+              <div className="spec-item">
+                <div className="spec-val">IP65</div>
+                <div className="spec-label">Weatherproof</div>
+              </div>
+              <div className="spec-item">
+                <div className="spec-val">Smart</div>
+                <div className="spec-label">Cloud Control</div>
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="scroll-section">
           <div className="glass-panel">
-            <h2>Rental & Sales</h2>
-            <p>Whether you need a permanent installation or a temporary rental, Loofix provides flexible and scalable LED solutions tailored to your unique requirements. We manage everything from setup to operation.</p>
+            <div className="panel-tag">Reliable Partner</div>
+            <h2>Your Trusted LED Dealer</h2>
+            <div className="features-container">
+              <div className="feature">
+                <h3>Vibrant Color Calibration</h3>
+                <p>We ensure every display we supply meets industry-leading color accuracy standards.</p>
+              </div>
+              <div className="feature">
+                <h3>Lightweight Design</h3>
+                <p>Sourcing carbon fiber frame technology for rapid deployment and maximum safety.</p>
+              </div>
+              <div className="feature">
+                <h3>Expert Sourcing & Support</h3>
+                <p>We don't just sell; we source the exact specs you need and provide full technical operation.</p>
+              </div>
+            </div>
           </div>
         </section>
       </div>
 
+
       {/* Enquiry Section */}
       <section className="enquiry-section">
         <div className="skeuo-panel center-panel">
-          <h2 className="engraved-text">Ready to Elevate Your Display?</h2>
-          <p className="inset-text">Contact us today and let's bring your vision to life.</p>
-          <a
-            href="https://wa.me/919400374426?text=hi%20iam%20intrest%20about%20knowing%20the%20product"
-            className="skeuo-btn"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Enquire Now
-          </a>
+          <h2 className="engraved-text">Start Your Project</h2>
+          <p className="inset-text">Transform your space with Loofix LED solutions. Quick enquiry via WhatsApp.</p>
+          <div className="enquiry-options">
+            <a
+              href="https://wa.me/919400374426?text=hi%20I'm%20interested%20in%20LED%20Wall%20Rental"
+              className="skeuo-btn option-btn"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Rental Enquiry
+            </a>
+            <a
+              href="https://wa.me/919400374426?text=hi%20I'm%20interested%20in%20Purchasing%20LED%20Displays"
+              className="skeuo-btn option-btn highlighted"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Sales Enquiry
+            </a>
+          </div>
         </div>
       </section>
+
     </div>
   );
 }

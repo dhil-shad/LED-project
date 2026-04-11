@@ -164,74 +164,128 @@ html {
 
 /* ── Glass Panels ───────────────────────────────── */
 .glass-panel {
-  background: linear-gradient(180deg, #2e2e2e 0%, #141414 100%);
+  background: linear-gradient(180deg, #1e1e1e 0%, #0a0a0a 100%);
   border: 1px solid #1a1a1a;
-  border-top: 1px solid #5a5a5a;
-  border-left: 1px solid #4a4a4a;
-  padding: 3rem 4rem;
-  border-radius: 12px;
-  max-width: 500px;
+  border-top: 1px solid #444;
+  border-left: 1px solid #333;
+  padding: 2.5rem 3rem;
+  border-radius: 16px;
+  max-width: 550px;
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.1),
-    0 15px 30px rgba(0, 0, 0, 0.8),
-    5px 25px 50px rgba(0, 0, 0, 0.9);
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    0 20px 40px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.02);
   position: relative;
   overflow: hidden;
-  transform: translateY(0);
-  transition: transform 0.4s ease;
+  backdrop-filter: blur(10px);
 }
 
-.glass-panel::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.04"/%3E%3C/svg%3E');
-  pointer-events: none;
+.panel-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: rgba(170, 59, 255, 0.1);
+  padding: 0.4rem 1rem;
+  border-radius: 100px;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(170, 59, 255, 0.2);
 }
 
-.glass-panel:hover {
-  transform: translateY(-5px);
+.spec-list {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.align-right {
-  margin-left: auto;
+.spec-list li {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 1.1rem;
 }
 
-.center-panel {
-  margin: 0 auto;
+.spec-list li span {
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.spec-item {
   text-align: center;
 }
 
-.glass-panel h1 {
-  font-size: 3.5rem;
+.spec-val {
+  font-size: 1.8rem;
   font-weight: 800;
-  margin: 0 0 1rem 0;
-  background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #fff;
 }
 
-.glass-panel h2 {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin: 0 0 1rem 0;
-  color: #ccc;
-  text-shadow:
-    -1px -1px 0 rgba(0, 0, 0, 0.8),
-    1px 1px 0 rgba(255, 255, 255, 0.1);
+.spec-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 0.3rem;
 }
 
-.glass-panel p {
-  font-size: 1.125rem;
-  line-height: 1.6;
-  color: #a1a1a1;
-  margin: 0;
-  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+.features-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-top: 2rem;
 }
+
+.feature h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.feature p {
+  font-size: 0.95rem !important;
+}
+
+.panel-footer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.availability {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Enquiry Table/Buttons ──────────────────────── */
+.enquiry-options {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.option-btn {
+  min-width: 200px;
+}
+
+.highlighted {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 20px rgba(170, 59, 255, 0.2) !important;
+}
+
 
 /* ── Enquiry Section ────────────────────────────── */
 .enquiry-section {
@@ -446,6 +500,20 @@ html {
   .skeuo-btn {
     font-size: 1rem;
     padding: 0.9rem 1.8rem;
+  }
+
+  .spec-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .enquiry-options {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .option-btn {
+    min-width: unset;
   }
 }
 
