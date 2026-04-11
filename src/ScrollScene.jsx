@@ -6,8 +6,9 @@ const COLS = 8, ROWS = 5, PW = 0.92, GAP = 0.08;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ss = (t) => t * t * (3 - 2 * t);
 const ease = (t, s, d) => ss(clamp((t - s) / d, 0, 1));
+const lerp = (a, b, f) => a + (b - a) * f;
 
-export default function ScrollScene({ scrollProgress }) {
+export default function ScrollScene({ scrollProgress, mousePos }) {
     const smoothP = useRef(0);
     const meshRefs = useRef([]);
     const matRefs = useRef([]);
@@ -22,6 +23,17 @@ export default function ScrollScene({ scrollProgress }) {
     const light1 = useRef();
     const light2 = useRef();
     const light3 = useRef();
+
+    // Mouse interaction refs
+    const cursorLightRef = useRef();
+    const cursorOrbRef = useRef();
+    const cursorOrbMatRef = useRef();
+    const cursorTrailRefs = useRef([]);
+    const cursorTrailMatRefs = useRef([]);
+    const smoothMouse = useRef({ x: 0, y: 0 });
+    const trailPositions = useRef(
+        Array.from({ length: 6 }, () => ({ x: 0, y: 0 }))
+    );
 
     /* ── Panel data ─────────────────────────────────── */
     const panels = useMemo(() => {
@@ -86,15 +98,70 @@ export default function ScrollScene({ scrollProgress }) {
         { radius: 4.5, speed: 0.22, height: 0.5, size: 0.3, hueOff: 0.66 },
     ], []);
 
+    /* ── Trail configs ─────────────────────────────── */
+    const TRAIL_COUNT = 6;
+    const trailSizes = useMemo(
+        () => Array.from({ length: TRAIL_COUNT }, (_, i) => 0.15 - i * 0.02), []
+    );
+
     /* ═══ ANIMATION FRAME ═════════════════════════════ */
-    useFrame(({ clock, mouse }) => {
+    useFrame(({ clock }) => {
         smoothP.current += (scrollProgress.current - smoothP.current) * 0.08;
         const t = smoothP.current;
         const time = clock.getElapsedTime();
 
-        // Mouse Parallax
-        const mouseX = mouse.x * 0.2;
-        const mouseY = mouse.y * 0.2;
+        // ── Smooth mouse tracking (window-level, works over content overlay) ──
+        const rawMX = mousePos.current.x;
+        const rawMY = mousePos.current.y;
+        const targetMX = rawMX * 6;
+        const targetMY = rawMY * 4;
+        smoothMouse.current.x = lerp(smoothMouse.current.x, targetMX, 0.08);
+        smoothMouse.current.y = lerp(smoothMouse.current.y, targetMY, 0.08);
+        const mx = smoothMouse.current.x;
+        const my = smoothMouse.current.y;
+
+        // Mouse reactivity fades as user scrolls past hero
+        const mouseInfluence = 1 - ease(t, 0.0, 0.25);
+
+        // ── Cursor-following light ──
+        if (cursorLightRef.current) {
+            cursorLightRef.current.position.set(mx, my, 4);
+            cursorLightRef.current.intensity = 1.5 * mouseInfluence;
+            const pulseHue = (0.75 + Math.sin(time * 0.8) * 0.08) % 1;
+            cursorLightRef.current.color.setHSL(pulseHue, 0.9, 0.6);
+        }
+
+        // ── Cursor glow orb ──
+        if (cursorOrbRef.current && cursorOrbMatRef.current) {
+            cursorOrbRef.current.position.set(mx, my, 3.5);
+            const pulse = 0.2 + Math.sin(time * 3) * 0.05;
+            cursorOrbRef.current.scale.setScalar(pulse * mouseInfluence);
+            cursorOrbMatRef.current.opacity = 0.5 * mouseInfluence;
+        }
+
+        // ── Cursor trail ──
+        trailPositions.current[0] = { x: mx, y: my };
+        for (let i = TRAIL_COUNT - 1; i > 0; i--) {
+            const prev = trailPositions.current[i - 1];
+            const cur = trailPositions.current[i];
+            trailPositions.current[i] = {
+                x: lerp(cur.x, prev.x, 0.15),
+                y: lerp(cur.y, prev.y, 0.15),
+            };
+        }
+        for (let i = 0; i < TRAIL_COUNT; i++) {
+            const tr = cursorTrailRefs.current[i];
+            const mat = cursorTrailMatRefs.current[i];
+            if (!tr || !mat) continue;
+            const tp = trailPositions.current[i];
+            tr.position.set(tp.x, tp.y, 3.2 - i * 0.15);
+            tr.scale.setScalar(trailSizes[i] * mouseInfluence);
+            mat.opacity = (0.35 - i * 0.05) * mouseInfluence;
+        }
+
+        // Mouse parallax
+        const mouseX = rawMX * 0.2;
+        const mouseY = rawMY * 0.2;
 
         // Derived animation values
         const assemble = ease(t, 0.08, 0.32);
@@ -115,7 +182,7 @@ export default function ScrollScene({ scrollProgress }) {
             gridRef.current.material.color.setHSL((0.72 + t * 0.2) % 1, 0.7, 0.4);
         }
 
-        // ── Scan beam (sweeps across wall when assembled) ──
+        // ── Scan beam ──
         if (scanRef.current && scanMatRef.current) {
             const scanActive = wallPhase > 0.85;
             scanRef.current.visible = scanActive;
@@ -143,35 +210,60 @@ export default function ScrollScene({ scrollProgress }) {
             light3.current.intensity = 0.15 + glow * 0.4;
         }
 
-        // ── Floating orbs ──
+        // ── Floating orbs (attracted toward cursor in hero) ──
         orbs.forEach((cfg, i) => {
             const orb = orbRefs.current[i], mat = orbMatRefs.current[i];
             if (!orb || !mat) return;
             const angle = time * cfg.speed + i * 2.1;
-            orb.position.set(
-                Math.cos(angle) * cfg.radius,
-                cfg.height + Math.sin(time * 0.5 + i * 1.5) * 0.8,
-                Math.sin(angle) * cfg.radius
-            );
+            let ox = Math.cos(angle) * cfg.radius;
+            let oy = cfg.height + Math.sin(time * 0.5 + i * 1.5) * 0.8;
+            let oz = Math.sin(angle) * cfg.radius;
+
+            // Subtle attraction toward cursor
+            if (mouseInfluence > 0.1) {
+                const attract = 0.15 * mouseInfluence;
+                ox = lerp(ox, mx * 0.6, attract);
+                oy = lerp(oy, my * 0.6, attract);
+            }
+
+            orb.position.set(ox, oy, oz);
             orb.scale.setScalar(cfg.size * (1 + Math.sin(time * 2 + i) * 0.25));
             mat.color.setHSL((hueBase + cfg.hueOff) % 1, 0.85, 0.55);
             mat.opacity = 0.25 + glow * 0.45;
         });
 
-        // ── LED Panels ──
+        // ── LED Panels (react to cursor proximity) ──
         panels.forEach((p, i) => {
             const mesh = meshRefs.current[i], mat = matRefs.current[i];
             if (!mesh || !mat) return;
 
-            const fX = p.sx + (p.tx - p.sx) * wallPhase;
-            const fY = p.sy + (p.ty - p.sy) * wallPhase;
-            const fZ = p.sz * (1 - wallPhase);
-            mesh.position.set(fX + (p.ex - fX) * disperse, fY + (p.ey - fY) * disperse, fZ + (p.ez - fZ) * disperse);
+            let fX = p.sx + (p.tx - p.sx) * wallPhase;
+            let fY = p.sy + (p.ty - p.sy) * wallPhase;
+            let fZ = p.sz * (1 - wallPhase);
+            fX = fX + (p.ex - fX) * disperse;
+            fY = fY + (p.ey - fY) * disperse;
+            fZ = fZ + (p.ez - fZ) * disperse;
+
+            // Mouse proximity displacement (hero phase only)
+            if (mouseInfluence > 0.05) {
+                const dx = fX - mx;
+                const dy = fY - my;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 4) {
+                    const force = (1 - dist / 4) * 0.8 * mouseInfluence;
+                    fX += dx * force * 0.3;
+                    fY += dy * force * 0.3;
+                    fZ += force * 0.5;
+                    // Extra glow for nearby panels
+                    mat.emissiveIntensity += force * 1.5;
+                }
+            }
+
+            mesh.position.set(fX, fY, fZ);
 
             const rot = 1 - wallPhase + disperse * 0.5;
             mesh.rotation.set(p.srx * rot, p.sry * rot, p.srz * rot);
 
-            // Breathing scale when assembled
             const breathe = wallPhase > 0.9 ? 1 + Math.sin(time * 1.5 + p.c * 0.5 + p.r * 0.3) * 0.04 : 1;
             mesh.scale.setScalar(breathe);
 
@@ -180,12 +272,24 @@ export default function ScrollScene({ scrollProgress }) {
             mat.emissiveIntensity = glow * (0.5 + 0.35 * Math.sin(time * 2 + p.c + p.r));
         });
 
-        // ── Rising sparks ──
+        // ── Rising sparks (displaced by cursor) ──
         if (sparkRef.current) {
             const arr = sparkRef.current.geometry.attributes.position.array;
             for (let i = 0; i < SPARK_COUNT; i++) {
                 arr[i * 3 + 1] += 0.015 + Math.sin(i) * 0.005;
                 if (arr[i * 3 + 1] > 9) { arr[i * 3 + 1] = -5; arr[i * 3] = (Math.random() - 0.5) * 16; }
+
+                // Push sparks away from cursor
+                if (mouseInfluence > 0.1) {
+                    const sdx = arr[i * 3] - mx;
+                    const sdy = arr[i * 3 + 1] - my;
+                    const sd = Math.sqrt(sdx * sdx + sdy * sdy);
+                    if (sd < 3) {
+                        const sf = (1 - sd / 3) * 0.04 * mouseInfluence;
+                        arr[i * 3] += sdx * sf;
+                        arr[i * 3 + 1] += sdy * sf;
+                    }
+                }
             }
             sparkRef.current.geometry.attributes.position.needsUpdate = true;
             sparkRef.current.material.opacity = 0.15 + glow * 0.55;
@@ -206,6 +310,27 @@ export default function ScrollScene({ scrollProgress }) {
             <pointLight ref={light1} intensity={0.5} distance={20} />
             <pointLight ref={light2} intensity={0.3} distance={15} />
             <pointLight ref={light3} intensity={0.2} distance={12} />
+
+            {/* ★ Cursor-following light */}
+            <pointLight ref={cursorLightRef} intensity={0} distance={10} decay={2} />
+
+            {/* ★ Cursor glow orb */}
+            <mesh ref={cursorOrbRef}>
+                <sphereGeometry args={[1, 24, 24]} />
+                <meshBasicMaterial ref={cursorOrbMatRef}
+                    color="#b794f6" transparent opacity={0}
+                    blending={THREE.AdditiveBlending} depthWrite={false} />
+            </mesh>
+
+            {/* ★ Cursor trail */}
+            {trailSizes.map((_, i) => (
+                <mesh key={`trail-${i}`} ref={el => (cursorTrailRefs.current[i] = el)}>
+                    <sphereGeometry args={[1, 12, 12]} />
+                    <meshBasicMaterial ref={el => (cursorTrailMatRefs.current[i] = el)}
+                        color="#a78bfa" transparent opacity={0}
+                        blending={THREE.AdditiveBlending} depthWrite={false} />
+                </mesh>
+            ))}
 
             {/* Neon grid floor */}
             <lineSegments ref={gridRef} geometry={gridGeo} position={[0, -3.5, 0]}>

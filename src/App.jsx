@@ -11,6 +11,7 @@ gsap.registerPlugin(ScrollTrigger);
 function App() {
   const containerRef = useRef(null);
   const scrollProgress = useRef(0);
+  const mousePos = useRef({ x: 0, y: 0 });
 
   // Loading states
   const [progress, setProgress] = useState(0);
@@ -39,6 +40,16 @@ function App() {
     const t2 = setTimeout(() => setEntered(true), 1500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [progress, glReady]);
+
+  // Track mouse at window level (Canvas can't see mouse through content overlay)
+  useEffect(() => {
+    const onMove = (e) => {
+      mousePos.current.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mousePos.current.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
 
   // Block scrolling while loading
   useEffect(() => {
@@ -99,7 +110,7 @@ function App() {
           onCreated={() => setGlReady(true)}
           style={{ background: 'transparent' }}
         >
-          <ScrollScene scrollProgress={scrollProgress} />
+          <ScrollScene scrollProgress={scrollProgress} mousePos={mousePos} />
         </Canvas>
       </div>
 
