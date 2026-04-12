@@ -284,8 +284,9 @@ export default function ScrollScene({ scrollProgress, mousePos }) {
                     const sdx = arr[i * 3] - mx;
                     const sdy = arr[i * 3 + 1] - my;
                     const sd = Math.sqrt(sdx * sdx + sdy * sdy);
-                    if (sd < 3) {
-                        const sf = (1 - sd / 3) * 0.04 * mouseInfluence;
+                    if (sd < 6) {
+                        // increased radius to 6, force to 0.15 for dramatic immersion
+                        const sf = (1 - sd / 6) * 0.15 * mouseInfluence;
                         arr[i * 3] += sdx * sf;
                         arr[i * 3 + 1] += sdy * sf;
                     }
