@@ -24,6 +24,22 @@ export default function ScrollScene({ scrollProgress, mousePos }) {
     const light2 = useRef();
     const light3 = useRef();
 
+    // New Immersive Elements
+    const ring1Ref = useRef();
+    const ring2Ref = useRef();
+    const cubeRef = useRef();
+    const cubeDummy = useMemo(() => new THREE.Object3D(), []);
+    const CUBE_COUNT = 35;
+    const cubeData = useMemo(() => Array.from({ length: CUBE_COUNT }, () => ({
+        x: (Math.random() - 0.5) * 35,
+        y: (Math.random() - 0.5) * 25 - 5,
+        z: (Math.random() - 0.5) * 20 - 5,
+        rx: Math.random() * Math.PI,
+        ry: Math.random() * Math.PI,
+        speed: 0.2 + Math.random() * 0.8,
+        scale: 0.15 + Math.random() * 0.5
+    })), []);
+
     // Mouse interaction refs
     const cursorLightRef = useRef();
     const cursorOrbRef = useRef();
@@ -301,6 +317,62 @@ export default function ScrollScene({ scrollProgress, mousePos }) {
             dustRef.current.rotation.y = time * 0.008 + t * 0.2;
             dustRef.current.material.opacity = 0.15 + glow * 0.25;
         }
+
+        // ── Holographic Rings ──
+        if (ring1Ref.current && ring2Ref.current) {
+            ring1Ref.current.rotation.x = time * 0.12;
+            ring1Ref.current.rotation.y = time * 0.18;
+            ring1Ref.current.scale.setScalar(1 + Math.sin(time * 1.5) * 0.05 + glow * 0.1);
+            ring1Ref.current.material.opacity = 0.15 + glow * 0.4;
+
+            ring2Ref.current.rotation.x = -time * 0.08 + mouseY * 0.5;
+            ring2Ref.current.rotation.y = -time * 0.15 + mouseX * 0.5;
+            ring2Ref.current.scale.setScalar(1 + Math.cos(time * 1.2) * 0.08 + glow * 0.1);
+            ring2Ref.current.material.opacity = 0.1 + glow * 0.3;
+
+            // Mouse repelling/shifting for rings
+            ring1Ref.current.position.x = lerp(ring1Ref.current.position.x, mx * -1.2, 0.05);
+            ring1Ref.current.position.y = lerp(ring1Ref.current.position.y, my * -1.2, 0.05);
+            ring2Ref.current.position.x = lerp(ring2Ref.current.position.x, mx * -0.6, 0.05);
+            ring2Ref.current.position.y = lerp(ring2Ref.current.position.y, my * -0.6, 0.05);
+        }
+
+        // ── Floating Data Cubes ──
+        if (cubeRef.current) {
+            cubeData.forEach((data, i) => {
+                data.y += data.speed * 0.03;
+                if (data.y > 15) { data.y = -15; }
+                data.rx += 0.005 * data.speed;
+                data.ry += 0.008 * data.speed;
+
+                let curX = data.x;
+                let curY = data.y;
+                let curZ = data.z;
+
+                // Mouse repel logic
+                if (mouseInfluence > 0.05) {
+                    const dx = curX - mx;
+                    const dy = curY - my;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 8) {
+                        const force = (1 - dist / 8) * 0.2 * mouseInfluence;
+                        curX += dx * force;
+                        curY += dy * force;
+                        curZ += force * 2;
+                    }
+                }
+
+                cubeDummy.position.set(curX, curY, curZ);
+                cubeDummy.rotation.set(data.rx, data.ry, 0);
+
+                const finalScale = data.scale * (0.5 + glow * 0.8 + (wallPhase * 0.5));
+                cubeDummy.scale.setScalar(finalScale);
+                cubeDummy.updateMatrix();
+                cubeRef.current.setMatrixAt(i, cubeDummy.matrix);
+            });
+            cubeRef.current.material.opacity = 0.15 + glow * 0.5;
+            cubeRef.current.instanceMatrix.needsUpdate = true;
+        }
     });
 
     /* ═══ JSX ═════════════════════════════════════════ */
@@ -378,6 +450,22 @@ export default function ScrollScene({ scrollProgress, mousePos }) {
                 <pointsMaterial size={0.04} color="#7c3aed" transparent opacity={0.2}
                     sizeAttenuation blending={THREE.AdditiveBlending} depthWrite={false} />
             </points>
+
+            {/* Holographic Rings */}
+            <mesh ref={ring1Ref} position={[0, 0, -4]}>
+                <torusGeometry args={[14, 0.04, 16, 100]} />
+                <meshBasicMaterial color="#00ffcc" transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} />
+            </mesh>
+            <mesh ref={ring2Ref} position={[0, 0, -6]}>
+                <torusGeometry args={[20, 0.02, 16, 120]} />
+                <meshBasicMaterial color="#a78bfa" transparent opacity={0.15} blending={THREE.AdditiveBlending} depthWrite={false} />
+            </mesh>
+
+            {/* Holographic Data Cubes */}
+            <instancedMesh ref={cubeRef} args={[undefined, undefined, CUBE_COUNT]}>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshBasicMaterial color="#7c3aed" wireframe transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} />
+            </instancedMesh>
 
             {/* Rising spark particles */}
             <points ref={sparkRef}>
